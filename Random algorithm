@@ -1,0 +1,97 @@
+public final class CustomPRNG {
+    private long state;
+
+    private static final long GOLDEN_GAMMA = 0x9E3779B97f4A7C15L;
+    private static final long SM64_M1 = 0xBF58476D1CE4E5B9L;
+    private static final long SM64_M2 = 0x94D049BB133111EBL;
+
+    public CustomPRNG() {
+        this(System.nanoTime() ^ System.currentTimeMillis());
+    }
+
+    public CustomPRNG(long seed) {
+        setSeed(seed);
+    }
+
+    public final void setSeed(long seed) {
+        long z = seed + GOLDEN_GAMMA;
+        z = (z ^ (z >>> 30)) * SM64_M1;
+        z = (z ^ (z >>> 27)) * SM64_M2;
+        long result = z ^ (z >>> 31);
+        if (result == 0L) result = 0x9E3779B97f4A7C15L;
+        this.state = result;
+    }
+
+    public static long splitMix64(long seed) {
+        long z = seed + GOLDEN_GAMMA;
+        z = (z ^ (z >>> 30)) * SM64_M1;
+        z = (z ^ (z >>> 27)) * SM64_M2;
+        return z ^ (z >>> 31);
+    }
+
+    public long nextLong() {
+        long x = state;
+        x ^= (x >>> 12);
+        x ^= (x << 25);
+        x ^= (x >>> 27);
+        state = x;
+        return x * 2685821657736338717L;
+    }
+
+    public int nextInt() {
+        return (int) nextLong();
+    }
+
+    public int nextInt(int bound) {
+        if (bound <= 0) throw new IllegalArgumentException("bound must be positive");
+        if ((bound & (bound - 1)) == 0) return (int)((nextLong() >>> 1) & (bound - 1));
+        long r;
+        long threshold = Long.remainderUnsigned(-bound, bound);
+        while (true) {
+            r = nextLong() >>> 1;
+            if (Long.compareUnsigned(r, threshold) >= 0) return (int)(r % bound);
+        }
+    }
+
+    public boolean nextBoolean() {
+        return (nextLong() & 1L) != 0L;
+    }
+
+    public double nextDouble() {
+        long bits = nextLong() >>> 11;
+        return bits / (double)(1L << 53);
+    }
+
+    public void nextBytes(byte[] bytes) {
+        int i = 0;
+        int len = bytes.length;
+        while (len >= 8) {
+            long r = nextLong();
+            for (int j = 0; j < 8; j++) {
+                bytes[i++] = (byte) r;
+                r >>= 8;
+            }
+            len -= 8;
+        }
+        if (len > 0) {
+            long r = nextLong();
+            for (int j = 0; j < len; j++) {
+                bytes[i++] = (byte) r;
+                r >>= 8;
+            }
+        }
+    }
+
+    public float nextFloat() {
+        return (nextLong() >>> 40) / (float)(1 << 24);
+    }
+
+    public <T> void shuffle(T[] array) {
+        for (int i = array.length - 1; i > 0; i--) {
+            int j = nextInt(i + 1);
+            T tmp = array[i];
+            array[i] = array[j];
+            array[j] = tmp;
+        }
+    }
+}
